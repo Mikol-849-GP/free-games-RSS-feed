@@ -40,22 +40,28 @@ for game in epic_data["data"]["Catalog"]["searchStore"]["elements"]:
 
     add_item(channel, title, link, desc, guid)
 
-# ---- STEAM FREE-TO-PLAY ----
-steam_url = "https://api.steampowered.com/ISteamApps/GetAppList/v2/"
-steam_apps = requests.get(steam_url, timeout=10).json()["applist"]["apps"]
+# ---- STEAM FREE PROMOTIONS (100% OFF ONLY) ----
+steam_search_url = (
+    "https://store.steampowered.com/api/storesearch/"
+    "?filter=discounted&specials=1&cc=us&l=en"
+)
 
-for app in steam_apps[:2000]:
-    name = app["name"].lower()
-    if "free" not in name:
+steam_data = requests.get(steam_search_url, timeout=10).json()
+
+for item in steam_data.get("items", []):
+    price = item.get("price", {})
+    if price.get("discount_percent") != 100:
         continue
 
-    guid = f"steam-{app['appid']}"
+    appid = item.get("id")
+    guid = f"steam-promo-{appid}"
+
     if guid in existing_guids:
         continue
 
-    title = f"Steam Free: {app['name']}"
-    link = f"https://store.steampowered.com/app/{app['appid']}"
-    desc = "Free game on Steam"
+    title = f"Steam Free (Promo): {item['name']}"
+    link = f"https://store.steampowered.com/app/{appid}"
+    desc = "Free on Steam for a limited time (100% discount)"
 
     add_item(channel, title, link, desc, guid)
 
