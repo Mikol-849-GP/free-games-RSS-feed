@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0">
+  <channel>
+    <title>My Automated Free Games Feed</title>
+    <link>https://yourusername.github.io/free-games-rss/</link>
+    <description>Automatically updated feed of free games from various platforms</description>
+
+    <!-- Placeholder -->
+    <item>
+      <title>Awesome Free RPG</title>
+      <link>https://example.com/awesome-rpg</link>
+      <description>An amazing indie RPG that’s free to play.</description>
+      <pubDate>Tue, 17 Dec 2025 12:00:00 GMT</pubDate>
+    </item>
+    
+  </channel>
+</rss>
