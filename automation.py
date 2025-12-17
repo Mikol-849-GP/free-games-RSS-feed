@@ -1,39 +1,65 @@
-import requests
-from datetime import datetime
 import xml.etree.ElementTree as ET
+from datetime import datetime, timezone
+import requests
+import os
 
-FEED_FILE = 'feed.xml'
-YOUR_SITE_LINK = 'https://yourusername.github.io/free-games-rss/'
+FEED_FILE = "feed.xml"
 
-ITCH_FREE_RSS = 'https://itch.io/games/free/rss'
-EPIC_FREE_RSS = 'https://epicgamesfreebies.com/feed/'
-STEAMDB_FREE_RSS = 'https://steamdb.info/rss/'
+def load_existing_guids(root):
+    return {item.find("guid").text for item in root.findall("./channel/item") if item.find("guid") is not None}
 
-RSS_SOURCES = [ITCH_FREE_RSS, EPIC_FREE_RSS, STEAMDB_FREE_RSS]
+def add_item(channel, title, link, description, guid):
+    item = ET.SubElement(channel, "item")
+    ET.SubElement(item, "title").text = title
+    ET.SubElement(item, "link").text = link
+    ET.SubElement(item, "description").text = description
+    ET.SubElement(item, "guid").text = guid
+    ET.SubElement(item, "pubDate").text = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
 
-def fetch_items_from_rss(url):
-    resp = requests.get(url)
-    resp.raise_for_status()
-    root = ET.fromstring(resp.content)
-    items = []
-    for item in root.findall('.//item'):
-        title = item.find('title').text
-        link = item.find('link').text
-        description = item.find('description').text if item.find('description') is not None else ''
-        pubDate = item.find('pubDate').text if item.find('pubDate') is not None else datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT')
-        items.append({'title': title, 'link': link, 'description': description, 'pubDate': pubDate})
-    return items
+tree = ET.parse(FEED_FILE)
+root = tree.getroot()
+channel = root.find("channel")
 
-def generate_feed(items):
-    rss = ET.Element('rss', version='2.0')
-    channel = ET.SubElement(rss, 'channel')
-    ET.SubElement(channel, 'title').text = 'My Automated Free Games Feed'
-    ET.SubElement(channel, 'link').text = YOUR_SITE_LINK
-    ET.SubElement(channel, 'description').text = 'Automatically updated feed of free games from Itch.io, Epic, and SteamDB'
-    for item in items:
-        item_el = ET.SubElement(channel, 'item')
-        ET.SubElement(item_el, 'title').text = item['title']
-        ET.SubElement(item_el, 'link').text = item['link']
+existing_guids = load_existing_guids(root)
+
+# ---- EPIC GAMES ----
+epic_url = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions"
+epic_data = requests.get(epic_url, timeout=10).json()
+
+for game in epic_data["data"]["Catalog"]["searchStore"]["elements"]:
+    if not game.get("promotions"):
+        continue
+
+    guid = f"epic-{game['id']}"
+    if guid in existing_guids:
+        continue
+
+    title = f"Epic Free: {game['title']}"
+    link = f"https://store.epicgames.com/p/{game['productSlug']}"
+    desc = "Free on Epic Games Store"
+
+    add_item(channel, title, link, desc, guid)
+
+# ---- STEAM FREE-TO-PLAY ----
+steam_url = "https://api.steampowered.com/ISteamApps/GetAppList/v2/"
+steam_apps = requests.get(steam_url, timeout=10).json()["applist"]["apps"]
+
+for app in steam_apps[:2000]:
+    name = app["name"].lower()
+    if "free" not in name:
+        continue
+
+    guid = f"steam-{app['appid']}"
+    if guid in existing_guids:
+        continue
+
+    title = f"Steam Free: {app['name']}"
+    link = f"https://store.steampowered.com/app/{app['appid']}"
+    desc = "Free game on Steam"
+
+    add_item(channel, title, link, desc, guid)
+
+tree.write(FEED_FILE, encoding="utf-8", xml_declaration=True)
         ET.SubElement(item_el, 'description').text = item['description']
         ET.SubElement(item_el, 'pubDate').text = item['pubDate']
     return ET.tostring(rss, encoding='utf-8', xml_declaration=True).decode('utf-8')
