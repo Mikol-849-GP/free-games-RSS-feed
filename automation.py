@@ -66,8 +66,8 @@ for item in steam_data.get("items", []):
     add_item(channel, title, link, desc, guid)
 
 tree.write(FEED_FILE, encoding="utf-8", xml_declaration=True)
-        ET.SubElement(item_el, 'description').text = item['description']
-        ET.SubElement(item_el, 'pubDate').text = item['pubDate']
+    ET.SubElement(item_el, 'description').text = item['description']
+    ET.SubElement(item_el, 'pubDate').text = item['pubDate']
     return ET.tostring(rss, encoding='utf-8', xml_declaration=True).decode('utf-8')
 
 all_items = []
