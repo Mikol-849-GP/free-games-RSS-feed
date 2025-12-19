@@ -31,6 +31,8 @@ if channel is None:
 existing_guids = load_existing_guids(root)
 
 # ---- EPIC GAMES ----
+epic_url = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions"
+epic_data = requests.get(epic_url, timeout=10).json()
 
 now = datetime.now(timezone.utc)
 
