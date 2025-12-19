@@ -31,36 +31,56 @@ if channel is None:
 existing_guids = load_existing_guids(root)
 
 # ---- EPIC GAMES ----
-epic_url = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions"
-epic_data = requests.get(epic_url, timeout=10).json()
 
-elements = (
-    epic_data
-    .get("data", {})
-    .get("Catalog", {})
-    .get("searchStore", {})
-    .get("elements", [])
-)
+now = datetime.now(timezone.utc)
 
-for game in elements:
-    if not game.get("promotions"):
+for game in epic_data["data"]["Catalog"]["searchStore"]["elements"]:
+    promos = game.get("promotions")
+    if not promos:
         continue
 
-    guid = f"epic-{game['id']}"
+    promo_offers = promos.get("promotionalOffers", [])
+    if not promo_offers:
+        continue
+
+    offer = promo_offers[0]["promotionalOffers"][0]
+
+    start = datetime.fromisoformat(offer["startDate"].replace("Z", "+00:00"))
+    end = datetime.fromisoformat(offer["endDate"].replace("Z", "+00:00"))
+
+    if not (start <= now <= end):
+        continue
+
+    discount = offer["discountSetting"].get("discountPercentage")
+    if discount != 0:
+        continue
+
+    guid = f"epic-free-{game['id']}"
     if guid in existing_guids:
         continue
 
-    slug = game.get("productSlug") or game.get("urlSlug")
+    slug = (
+        game.get("productSlug")
+        or game.get("urlSlug")
+        or game.get("offerMappings", [{}])[0].get("pageSlug")
+    )
+
     if not slug:
         continue
 
-    title = f"Epic Free: {game['title']}"
     link = f"https://store.epicgames.com/p/{slug}"
-    desc = "Free on Epic Games Store"
 
-    add_item(channel, title, link, desc, guid)
+    add_item(
+        channel,
+        f"Epic Free: {game['title']}",
+        link,
+        "Free on Epic Games Store (limited time)",
+        guid
+    )
+
 
 # ---- STEAM FREE PROMOTIONS (100% OFF ONLY) ----
+
 steam_url = "https://store.steampowered.com/api/storesearch"
 params = {
     "filter": "specials",
